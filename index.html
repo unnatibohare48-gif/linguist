@@ -1,0 +1,183 @@
+OCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>OmniScience | AI Thought Partner Lab</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600&display=swap');
+        
+        body { margin: 0; background: #000; color: #00f2ff; font-family: 'Inter', sans-serif; overflow: hidden; display: flex; }
+        
+        #canvas-container { flex-grow: 1; position: relative; }
+        
+        /* AI Sidebar - Premium "Gemini" Feel */
+        #ai-sidebar { 
+            width: 380px; 
+            background: rgba(10, 12, 18, 0.98); 
+            border-left: 1px solid rgba(0, 242, 255, 0.3); 
+            display: flex; 
+            flex-direction: column;
+            box-shadow: -15px 0 45px rgba(0,0,0,0.9);
+        }
+
+        .ai-header { padding: 25px; background: linear-gradient(to bottom, rgba(0,242,255,0.05), transparent); border-bottom: 1px solid #222; }
+        .ai-header h3 { margin:0; font-family: 'Orbitron'; font-size: 14px; letter-spacing: 1px; }
+
+        #chat-window { flex-grow: 1; padding: 20px; overflow-y: auto; scroll-behavior: smooth; }
+        
+        .msg { margin-bottom: 20px; max-width: 90%; line-height: 1.6; font-size: 14px; }
+        .ai-msg { color: #e0e0e0; align-self: flex-start; border-left: 3px solid #00f2ff; padding-left: 12px; }
+        .user-msg { color: #00f2ff; align-self: flex-end; margin-left: auto; text-align: right; font-weight: 600; }
+        
+        .ai-input-area { padding: 20px; background: #0a0c12; border-top: 1px solid #222; }
+        input { 
+            width: 100%; padding: 14px; background: #111; border: 1px solid #333; 
+            border-radius: 8px; color: #fff; outline: none; transition: 0.3s;
+        }
+        input:focus { border-color: #00f2ff; box-shadow: 0 0 10px rgba(0,242,255,0.2); }
+
+        #hud { position: absolute; top: 25px; left: 25px; pointer-events: none; font-family: 'Orbitron'; }
+        .controls { position: absolute; top: 90px; left: 25px; display: flex; flex-direction: column; gap: 10px; pointer-events: all; }
+        button { 
+            background: rgba(0,0,0,0.7); border: 1px solid rgba(0,242,255,0.4); 
+            color: #00f2ff; padding: 10px 15px; cursor: pointer; font-family: 'Orbitron'; 
+            font-size: 10px; border-radius: 4px; transition: 0.3s;
+        }
+        button:hover { background: #00f2ff; color: #000; font-weight: bold; }
+
+        .world-label { position: absolute; color: #ffcc00; font-size: 11px; pointer-events: none; font-weight: bold; font-family: 'Orbitron'; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <div id="hud">
+            <h1 style="margin:0; font-size: 18px; letter-spacing: 2px;">OMNISCIENCE PRO</h1>
+            <p style="font-size: 9px; color: #666;">INTELLIGENT RESEARCH PARTNER ACTIVE</p>
+        </div>
+        <div class="controls">
+            <button onclick="updateMode('blackhole')">BLACK HOLE</button>
+            <button onclick="updateMode('whitehole')">WHITE HOLE</button>
+            <button onclick="updateMode('wormhole')">WORMHOLE</button>
+        </div>
+        <div id="label-horizon" class="world-label">EVENT HORIZON</div>
+        <div id="label-disk" class="world-label">ACCRETION DISK</div>
+        <div id="label-gem" class="world-label">GEM DATA-CORE</div>
+    </div>
+
+    <div id="ai-sidebar">
+        <div class="ai-header">
+            <h3>GEMINI THOUGHT PARTNER</h3>
+            <div style="font-size: 9px; color: #00ff00; margin-top:5px;">● SOURCES: nasa.pdf | rosenbridge.pdf</div>
+        </div>
+        <div id="chat-window">
+            <div class="msg ai-msg">Hey there! I've been looking over your research files. Ready to dive into the physics of GRS 1915+105 or explore that Einstein-Rosen bridge? Just let me know what's on your mind.</div>
+        </div>
+        <div class="ai-input-area">
+            <input type="text" id="ai-query" placeholder="Ask me anything..." onkeypress="handleAsk(event)">
+        </div>
+    </div>
+
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, container.clientWidth / window.innerHeight, 0.1, 2000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, window.innerHeight);
+        container.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        camera.position.set(0, 60, 160);
+
+        let particles, core, gem, currentMode = 'blackhole';
+
+        function createSim(type) {
+            scene.clear(); currentMode = type;
+            const coreCol = type === 'whitehole' ? 0xffffff : 0x000000;
+            core = new THREE.Mesh(new THREE.SphereGeometry(18, 32, 32), new THREE.MeshBasicMaterial({color: coreCol}));
+            if(type !== 'wormhole') scene.add(core);
+
+            const count = type === 'wormhole' ? 20000 : 10000;
+            const pos = new Float32Array(count * 3);
+            for(let i=0; i<count; i++) {
+                let r = Math.random() * 80 + 25, a = Math.random() * Math.PI * 2;
+                if(type === 'wormhole') {
+                    let z = (Math.random()-0.5)*400;
+                    let rad = 20 + (Math.pow(z/150, 2)*40);
+                    pos[i*3] = Math.cos(a)*rad; pos[i*3+1] = Math.sin(a)*rad; pos[i*3+2] = z;
+                } else {
+                    pos[i*3] = Math.cos(a)*r; pos[i*3+1] = (Math.random()-0.5)*3; pos[i*3+2] = Math.sin(a)*r;
+                }
+            }
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const pCol = type === 'whitehole' ? 0x00f2ff : 0xff7700;
+            particles = new THREE.Points(geo, new THREE.PointsMaterial({size: 0.6, color: pCol, transparent: true, opacity: 0.7}));
+            scene.add(particles);
+
+            if(type === 'wormhole') {
+                gem = new THREE.Mesh(new THREE.OctahedronGeometry(10), new THREE.MeshBasicMaterial({color: 0x00f2ff, wireframe: true}));
+                gem.position.set(0, 0, -180); scene.add(gem);
+            }
+        }
+
+        function projectLabel(pos, element) {
+            const vector = pos.clone().project(camera);
+            element.style.left = (vector.x + 1) / 2 * container.clientWidth + 'px';
+            element.style.top = -(vector.y - 1) / 2 * window.innerHeight + 'px';
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if(particles) particles.rotation.y += 0.003;
+            if(gem) gem.rotation.z += 0.01;
+            
+            const dist = camera.position.length();
+            document.getElementById('label-horizon').style.opacity = (currentMode!=='wormhole' && dist < 140) ? 1 : 0;
+            document.getElementById('label-disk').style.opacity = (currentMode!=='wormhole' && dist < 220 && dist > 60) ? 1 : 0;
+            document.getElementById('label-gem').style.opacity = (currentMode==='wormhole' && dist < 350) ? 1 : 0;
+            
+            if(currentMode!=='wormhole') {
+                projectLabel(new THREE.Vector3(0,0,0), document.getElementById('label-horizon'));
+                projectLabel(new THREE.Vector3(55,0,0), document.getElementById('label-disk'));
+            } else projectLabel(new THREE.Vector3(0,0,-180), document.getElementById('label-gem'));
+
+            controls.update(); renderer.render(scene, camera);
+        }
+
+        window.updateMode = (m) => createSim(m);
+        createSim('blackhole'); animate();
+
+        // Grounded AI Logic with Personality
+        window.handleAsk = (e) => {
+            if(e.key === 'Enter') {
+                const q = e.target.value;
+                const win = document.getElementById('chat-window');
+                win.innerHTML += `<div class="msg user-msg">${q}</div>`;
+                e.target.value = '';
+                
+                setTimeout(() => {
+                    let ans = "";
+                    const lowQ = q.toLowerCase();
+                    
+                    if(lowQ.includes('grs 1915') || lowQ.includes('nasa')) {
+                        ans = "That's a fascinating system. According to nasa.pdf, GRS 1915+105 is a binary black hole! My files show that it has this really cool 'photon index saturation'—basically a unique signature that proves matter is falling in. Pretty neat, right?";
+                    } else if(lowQ.includes('wormhole') || lowQ.includes('bridge')) {
+                        ans = "Ah, the Einstein-Rosen bridge! It's not just sci-fi; rosenbridge.pdf describes it as a traversable tunnel from the original 1935 paper. Though, as you can see in the simulation, you'd need some 'exotic' matter to keep that throat open!";
+                    } else if(lowQ.includes('who are you') || lowQ.includes('hi')) {
+                        ans = "Hey! I'm your thought partner here. I'm not just a calculator; I'm grounded in your research papers to help you explore these singularities without the usual AI guesswork.";
+                    } else {
+                        ans = "I'm looking at the data... based on the Schwarzschild metric and your documents, what you're seeing follows the laws of general relativity. It's intense, isn't it? What part of the simulation interests you most?";
+                    }
+                    
+                    win.innerHTML += `<div class="msg ai-msg">${ans}</div>`;
+                    win.scrollTop = win.scrollHeight;
+                }, 800);
+            }
